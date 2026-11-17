@@ -299,3 +299,25 @@ no fetch-mode row, no fetch badge on cards, no fetch-related copy.
 
 Tests are offline by construction: adapters receive their `fetch` through
 `lib/search/http.js`'s `setFetchForTests`, and the Host tests never mount a real profile.
+
+## Reconciling DSH's own web-search page
+
+`web.searchProvider` and `web.fetchProvider` are shared with DSH's built-in
+**网页搜索** settings page, whose switch writes both fields at once. The plugin
+therefore treats the pinned field as an *observation*, not an assumption:
+
+- On boot the order is `sync → reconcile → applyPin → applyFetchPin`, so a change
+  made while the plugin was disabled is adopted instead of overwritten.
+- `reconcile()` (also `POST /reconcile`) adopts external values into the store and
+  only writes when healing (`better-search/*` pointing at a missing service, or a
+  cleared field). It never overwrites a provider owned by another plugin; it reports
+  `foreign` and deselects instead.
+- `GET /state` exposes `drift` (read-only) and the panel calls `/reconcile` once per
+  distinct drift value, then shows a localized notice. `POST /select` and
+  `PUT /fetch` clear the notice.
+- `ensureOriginalFetchProvider()` sanitizes the captured baseline, so an offline
+  uninstall cannot make `restore()` write a provider id that no longer exists.
+
+Residue: the plugin writes only `$DSH_HOME/better-search/` (plus the two provider
+fields, restored on unload). `bin/better-search.mjs clean --yes` removes the store;
+`status` reports counts without printing credentials.

@@ -411,6 +411,73 @@ describe('dsh-better-search host', () => {
     secondRegistry.dispose();
   });
 
+  it('detects an external switch and adopts it without writing', async () => {
+    await call({ method: 'POST', path: '/services', body: { type: 'tavily', keys: ['tvly-1'] } });
+    assert.ok(harness.settingsState.value.searchProvider.startsWith('better-search/'));
+    // DSH's own web-search settings page writes the same fields.
+    harness.settingsState.value.searchProvider = 'deepseek-search-api';
+    harness.settingsState.value.fetchProvider = 'deepseek-fetch-api';
+    const drifted = await call({ path: '/state' });
+    assert.equal(drifted.json.drift.search.kind, 'builtin');
+    assert.equal(drifted.json.drift.search.actual, 'deepseek-search-api');
+    const reconciled = await call({ method: 'POST', path: '/reconcile' });
+    assert.equal(reconciled.status, 200);
+    assert.equal(reconciled.json.selectedId, 'builtin:deepseek-search-api');
+    assert.equal(reconciled.json.notice.code, 'search-external');
+    assert.equal(reconciled.json.drift.search, null);
+    assert.equal(harness.settingsState.value.searchProvider, 'deepseek-search-api');
+  });
+
+  it('heals a pin that points at a service this install no longer has', async () => {
+    harness.settingsState.value.searchProvider = 'better-search/svc_missing';
+    const drifted = await call({ path: '/state' });
+    assert.equal(drifted.json.drift.search.kind, 'stale-ours');
+    const reconciled = await call({ method: 'POST', path: '/reconcile' });
+    assert.equal(reconciled.json.notice.code, 'search-healed');
+    assert.equal(reconciled.json.selectedId, 'builtin:deepseek-search-api');
+    assert.equal(harness.settingsState.value.searchProvider, 'deepseek-search-api');
+    assert.equal(reconciled.json.pin.ok, true);
+  });
+
+  it('heals a stale pin at boot through applyPin', async () => {
+    harness.settingsState.value.searchProvider = 'better-search/svc_missing';
+    const emptyStore = createStore({ dir: mkdtempSync(join(tmpdir(), 'better-search-boot-')), descriptorOf: providerOf });
+    await emptyStore.load();
+    const bootHarness = fakeHarness();
+    bootHarness.settingsState.value.searchProvider = 'better-search/svc_missing';
+    const bootRegistry = createRegistry({ ctx: bootHarness.ctx, store: emptyStore, adapters, fetchAdapters, usageAdapters });
+    bootRegistry.sync();
+    await bootRegistry.reconcile();
+    await bootRegistry.applyPin();
+    assert.equal(bootHarness.settingsState.value.searchProvider, 'deepseek-search-api');
+    assert.equal(bootRegistry.state().selectedId, 'builtin:deepseek-search-api');
+    bootRegistry.dispose();
+  });
+
+  it('adopts an external fetch provider change', async () => {
+    await call({ method: 'POST', path: '/services', body: { type: 'tavily', keys: ['tvly-1'] } });
+    await call({ method: 'PUT', path: '/fetch', body: { mode: 'follow' } });
+    assert.ok(harness.settingsState.value.fetchProvider.startsWith('better-search/'));
+    harness.settingsState.value.fetchProvider = 'deepseek-fetch-api';
+    const drifted = await call({ path: '/state' });
+    assert.ok(drifted.json.drift.fetch !== null);
+    const reconciled = await call({ method: 'POST', path: '/reconcile' });
+    assert.equal(reconciled.json.fetch.mode, 'official');
+    assert.equal(reconciled.json.notice.code, 'fetch-external');
+    assert.equal(harness.settingsState.value.fetchProvider, 'deepseek-fetch-api');
+  });
+
+  it('reports a provider owned by another plugin without adopting it', async () => {
+    harness.settingsState.value.searchProvider = 'other-plugin/provider';
+    const drifted = await call({ path: '/state' });
+    assert.equal(drifted.json.drift.search.kind, 'foreign');
+    const reconciled = await call({ method: 'POST', path: '/reconcile' });
+    assert.equal(reconciled.json.notice.code, 'search-foreign');
+    assert.equal(reconciled.json.notice.providerId, 'other-plugin/provider');
+    assert.equal(harness.settingsState.value.searchProvider, 'other-plugin/provider');
+    assert.equal(reconciled.json.selectedId, '');
+  });
+
   it('migrates a v1 store to the key pool', async () => {
     writeFileSync(
       join(dir, 'store.json'),

@@ -1,6 +1,6 @@
 {
   "name": "@ds-hu/dsh-better-search",
-  "version": "0.2.1",
+  "version": "0.3.0",
   "description": "Search and fetch services manager for the DeepSeek Harness Web GUI: a Kelivo-style sidebar panel to add, test, reorder and select web-search providers (Tavily, Brave, Exa, SearXNG, Perplexity and more) and web-fetch providers, with multi-key rotation and account-usage lookup. Providers serve the built-in web_search / web_fetch tools through ctx.web; the plugin adds no model-facing tool of its own.",
   "type": "module",
   "publishConfig": {
@@ -45,6 +45,7 @@
   "license": "MIT",
   "files": [
     "lib",
+    "bin",
     "assets",
     "locale",
     "cordis.patch.yml",
@@ -71,5 +72,8 @@
   },
   "peerDependencies": {
     "@deepseek-ai/cordis": "^4.0.2"
+  },
+  "bin": {
+    "dsh-better-search": "./bin/better-search.mjs"
   }
 }

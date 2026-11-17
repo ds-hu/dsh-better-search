@@ -32,6 +32,8 @@ multi-key pools, account balance and page-fetch routing — in the harness's own
 - **Account usage** — one click asks Tavily or LinkUp how much quota is left, with a progress bar.
 - **Page fetching is configurable too** — pick who reads pages: follow the active search service,
   keep DSH's own fetch provider, or pin any of the 13 fetch-capable services.
+- **No fighting with DSH's own settings** — change the switch on the official **网页搜索** page and the
+  panel follows it (and says so); a pin left behind by a removed service is healed automatically.
 - **Light and dark** — follows the harness theme; no hard-coded colours.
 
 <p align="center">
@@ -88,6 +90,20 @@ Stored keys are never echoed back: the dialog shows an empty key field with
 
 13 of them can also read pages: Tavily, Exa, LinkUp, Metaso, Ollama, DeepSeek, Jina, Querit,
 Firecrawl, TinyFish, AnySearch, Parallel, You.com.
+
+## Uninstall & cleanup
+
+Uninstalling while `dsh web` runs removes the panel, the HTTP route and every dynamic provider, and
+restores the profile's provider fields. Your service list and keys stay in `$DSH_HOME/better-search/`
+on purpose — remove them only when you mean it:
+
+```sh
+dsh-better-search status      # what is stored (never prints keys)
+dsh-better-search clean --yes # delete the store directory
+```
+
+`clean` also removes any stray `*.bak` files. If the bundle is removed while `dsh` is stopped, the
+next start heals the leftover `better-search/*` pin instead of leaving searches broken.
 
 ## Docs
 

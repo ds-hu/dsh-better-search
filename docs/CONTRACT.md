@@ -369,3 +369,55 @@ export const USAGE_ADAPTERS = { tavily, linkup };
 - `test/client-smoke.mjs` — fetch row, usage strings, endpoint references, CSS parity.
 - `test/host.test.mjs` — keys CRUD/reveal/mask, usage route, fetch mode pinning, migration
   from a v1 store, and unload restore of both pins.
+
+---
+
+# v3 — reconciling DSH's own settings page
+
+DSH's built-in **网页搜索** settings page edits the same `web` row this plugin pins:
+its switch stages `searchProvider` + `fetchProvider` together (`deepseek-search-api` /
+`deepseek-fetch-api` when on, `deepseek-official` / `http` when off). v3 makes the two
+UIs cooperate instead of fighting.
+
+## State additions
+
+```jsonc
+{
+  "drift": {
+    "search": null | { "actual": "…", "expected": "…", "kind": "builtin|service|stale-ours|foreign|unset", "…": "…" },
+    "fetch":  null | { "actual": "…", "expected": "…", "kind": "…" }
+  },
+  "notice": null | { "code": "search-external|search-healed|fetch-external|fetch-healed|search-foreign", "name"?: "…", "nameEn"?: "…", "providerId"?: "…" }
+}
+```
+
+`drift` is computed on read and never writes. `notice` is the outcome of the last
+`POST /reconcile`, and is cleared by the next `POST /select` or `PUT /fetch`.
+
+## `POST /reconcile`
+
+Adopts external changes, then returns the full state:
+
+| Actual pinned value | Action |
+|---|---|
+| a service of this plugin | store `selectedId` ← that service; no write |
+| a shipped DeepSeek provider | store `selectedId` ← `builtin:<id>`; no write; notice `search-external` |
+| `better-search/<missing>` | write `deepseek-search-api`; `selectedId` ← builtin; notice `search-healed` |
+| unset | write `deepseek-search-api`; notice `search-healed` |
+| another plugin's provider | store `selectedId` ← `""`; never write; notice `search-foreign` |
+
+Fetch follows the same idea: adopt a service pin as `mode: "service"`, adopt the
+baseline provider as `mode: "official"`, heal a missing one back to the baseline.
+
+Boot order is now `sync → reconcile → applyPin → applyFetchPin`, so a change made while
+the plugin was disabled survives a restart. `applyPin`/`applyFetchPin` also heal a
+stale `better-search/*` value when nothing maps, and the pre-plugin fetch provider is
+captured sanitized (a stale `better-search/*` baseline becomes `deepseek-fetch-api`).
+
+The panel detects `drift` on its poll and calls `/reconcile` once per distinct value,
+then shows a localized notice.
+
+## Cleanup CLI
+
+`bin/better-search.mjs` (`dsh-better-search status|path|clean --yes`) removes the
+store directory; `status` never prints credentials.

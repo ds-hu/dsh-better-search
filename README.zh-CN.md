@@ -30,6 +30,8 @@
 - **账户额度** —— 一键向 Tavily 或 LinkUp 查询剩余额度，Tavily 带进度条。
 - **网页抓取也能选服务商** —— 跟随当前搜索服务、保留 DSH 官方提供方，或指定 13 家支持抓取的
   服务商之一。
+- **不和官方设置打架** —— 在官方「网页搜索」页拨开关时，面板会自动跟随并给出提示；服务被删除后
+  残留的选择会被自动修复。
 - **浅色 / 深色** —— 跟随 Harness 主题，没有写死的颜色。
 
 <p align="center">
@@ -84,6 +86,19 @@ dsh plugin --profile web add github:ds-hu/dsh-better-search
 
 其中 13 家同时支持网页抓取：Tavily、Exa、LinkUp、Metaso、Ollama、DeepSeek、Jina、Querit、
 Firecrawl、TinyFish、AnySearch、Parallel、You.com。
+
+## 卸载与清理
+
+在 `dsh web` 运行中卸载：面板、HTTP 路由、所有动态 provider 都会被移除，profile 里的两个
+服务商字段会恢复原值。服务列表和 Key 仍会留在 `$DSH_HOME/better-search/`（这是有意的），需要时再清：
+
+```sh
+dsh-better-search status      # 查看存了什么（不会打印 Key）
+dsh-better-search clean --yes # 删除整个存储目录
+```
+
+`clean` 也会一并清掉遗留的 `*.bak` 文件。如果 dsh 停止运行时删掉了 bundle，下次启动会自动修复
+残留的 `better-search/*` 选择，不会让搜索一直报错。
 
 ## 文档
 
