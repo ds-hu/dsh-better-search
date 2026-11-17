@@ -87,11 +87,11 @@ Firecrawl、TinyFish、AnySearch、Parallel、You.com。
 
 ## 文档
 
-- [技术说明](docs/TECHNICAL.md) —— 插件结构、数据模型、失败模式。
-- [Host ↔ 面板契约](docs/CONTRACT.md) —— JSON API 与面板契约。
-- [NOTICE](NOTICE) —— 第三方归属（服务商 Logo、Kelivo 移植说明）。
+- [技术说明](https://github.com/ds-hu/dsh-better-search/blob/main/docs/TECHNICAL.md) —— 插件结构、数据模型、失败模式。
+- [Host ↔ 面板契约](https://github.com/ds-hu/dsh-better-search/blob/main/docs/CONTRACT.md) —— JSON API 与面板契约。
+- [NOTICE](https://github.com/ds-hu/dsh-better-search/blob/main/NOTICE) —— 第三方归属（服务商 Logo、Kelivo 移植说明）。
 
 ## 许可
 
-MIT —— 见 [LICENSE](LICENSE) 与 [NOTICE](NOTICE)。各家服务商名称与 Logo 是其所有者的商标，
+MIT —— 见 [LICENSE](https://github.com/ds-hu/dsh-better-search/blob/main/LICENSE) 与 [NOTICE](https://github.com/ds-hu/dsh-better-search/blob/main/NOTICE)。各家服务商名称与 Logo 是其所有者的商标，
 仅用于标识对应服务。

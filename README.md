@@ -91,11 +91,11 @@ Firecrawl, TinyFish, AnySearch, Parallel, You.com.
 
 ## Docs
 
-- [Technical notes](docs/TECHNICAL.md) — how the plugin is put together, data model, failure modes.
-- [Host ↔ panel contract](docs/CONTRACT.md) — the JSON API and panel contract.
-- [NOTICE](NOTICE) — third-party attribution (provider logos, Kelivo porting note).
+- [Technical notes](https://github.com/ds-hu/dsh-better-search/blob/main/docs/TECHNICAL.md) — how the plugin is put together, data model, failure modes.
+- [Host ↔ panel contract](https://github.com/ds-hu/dsh-better-search/blob/main/docs/CONTRACT.md) — the JSON API and panel contract.
+- [NOTICE](https://github.com/ds-hu/dsh-better-search/blob/main/NOTICE) — third-party attribution (provider logos, Kelivo porting note).
 
 ## License
 
-MIT — see [LICENSE](LICENSE) and [NOTICE](NOTICE). Provider names and logos are their owners'
+MIT — see [LICENSE](https://github.com/ds-hu/dsh-better-search/blob/main/LICENSE) and [NOTICE](https://github.com/ds-hu/dsh-better-search/blob/main/NOTICE). Provider names and logos are their owners'
 trademarks, used only to identify the service each card configures.
