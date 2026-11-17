@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "Search services",
+    "description": "Manage web-search and web-fetch providers from the sidebar: add, edit, test, reorder and select the active service, with multi-key rotation and account-usage lookup. The selection backs the built-in web_search / web_fetch tools."
+  }
+}

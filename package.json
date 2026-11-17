@@ -1,0 +1,75 @@
+{
+  "name": "@ds-hu/dsh-better-search",
+  "version": "0.2.0",
+  "description": "Search and fetch services manager for the DeepSeek Harness Web GUI: a Kelivo-style sidebar panel to add, test, reorder and select web-search providers (Tavily, Brave, Exa, SearXNG, Perplexity and more) and web-fetch providers, with multi-key rotation and account-usage lookup. Providers serve the built-in web_search / web_fetch tools through ctx.web; the plugin adds no model-facing tool of its own.",
+  "type": "module",
+  "publishConfig": {
+    "access": "public"
+  },
+  "main": "lib/index.js",
+  "exports": {
+    ".": "./lib/index.js",
+    "./client": "./lib/client.js",
+    "./locale/*.json": "./locale/*.json",
+    "./icon": "./icon.svg",
+    "./package.json": "./package.json"
+  },
+  "engines": {
+    "node": ">=20.19.0"
+  },
+  "dsh": {
+    "bundle": {
+      "patch": [
+        "./cordis.patch.yml"
+      ]
+    },
+    "client": {
+      "platform": "web",
+      "inject": [
+        "@deepseek-ai/dsh-client-ui-sidebar",
+        "@deepseek-ai/dsh-client-locale"
+      ]
+    }
+  },
+  "keywords": [
+    "deepseek-harness",
+    "dsh",
+    "dsh-plugin",
+    "dsh-bundle",
+    "cordis",
+    "web-search",
+    "search-provider",
+    "kelivo",
+    "web-ui"
+  ],
+  "license": "MIT",
+  "files": [
+    "lib",
+    "assets",
+    "locale",
+    "cordis.patch.yml",
+    "icon.svg",
+    "README.md",
+    "README.zh-CN.md",
+    "docs/*.md",
+    "docs/reference",
+    "LICENSE",
+    "NOTICE"
+  ],
+  "scripts": {
+    "test": "node --test test/*.test.mjs",
+    "test:client": "node test/client-smoke.mjs",
+    "check": "npm test && npm run test:client"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ds-hu/dsh-better-search.git"
+  },
+  "homepage": "https://github.com/ds-hu/dsh-better-search#readme",
+  "bugs": {
+    "url": "https://github.com/ds-hu/dsh-better-search/issues"
+  },
+  "peerDependencies": {
+    "@deepseek-ai/cordis": "^4.0.2"
+  }
+}

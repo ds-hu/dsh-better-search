@@ -1,0 +1,12 @@
+# The @ds-hu/dsh-better-search bundle patch.
+#
+# One row: the Host half. `name` must be this package's name so the Loader
+# resolves the row from the profile's node_modules; the browser half is
+# discovered from package.json's dsh.client declaration and served by the Web
+# shell. The Host registers extra search providers into ctx.web and pins
+# web.searchProvider to the service selected in the panel — it adds no
+# model-facing tool of its own.
+
+- insert:
+    - id: dsh-better-search
+      name: '@ds-hu/dsh-better-search'
