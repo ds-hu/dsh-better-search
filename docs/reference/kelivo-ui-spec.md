@@ -1,7 +1,7 @@
 # Kelivo · "Search services" settings surface — pixel/behaviour spec (desktop)
 
 Purpose: enough numeric detail to re-implement the pane faithfully in React/HTML.
-Source of truth (read-only): `/workspace/projects/github/ref/kelivo/`.
+Source of truth (read-only): a local read-only checkout of the Kelivo repository.
 
 All dimensions are logical px (Flutter logical pixels == CSS px at dpr 1). Opacities are given as
 `color @ alpha` computed with `Color.withValues(alpha: a)` (straight alpha compositing).

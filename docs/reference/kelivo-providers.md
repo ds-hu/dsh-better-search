@@ -1,7 +1,7 @@
 # Kelivo web-search providers — complete matrix for a Go/JS port
 
 Source of truth (read-only, snapshot 2026-11-17):
-`/workspace/projects/github/ref/kelivo/`
+a local read-only checkout of the Kelivo repository
 
 Primary files inspected:
 
