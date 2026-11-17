@@ -8,9 +8,9 @@ multi-key pools, account balance and page-fetch routing — in the harness's own
 
 <p align="center">
   <a href="https://www.npmjs.com/package/@ds-hu/dsh-better-search"><img alt="npm" src="https://img.shields.io/npm/v/@ds-hu/dsh-better-search?color=2E7DD1"></a>
-  <a href="LICENSE"><img alt="license" src="https://img.shields.io/badge/license-MIT-2E7DD1"></a>
+  <a href="https://github.com/ds-hu/dsh-better-search/blob/main/LICENSE"><img alt="license" src="https://img.shields.io/badge/license-MIT-2E7DD1"></a>
   <img alt="node" src="https://img.shields.io/badge/node-%E2%89%A520.19-2E7DD1">
-  <a href="README.zh-CN.md">中文</a>
+  <a href="https://github.com/ds-hu/dsh-better-search/blob/main/README.zh-CN.md">中文</a>
 </p>
 
 <p align="center">
