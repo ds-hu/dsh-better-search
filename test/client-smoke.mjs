@@ -7,8 +7,9 @@
  * at it, so this script is its compiler. It runs the real file in a `vm` with a
  * fake browser, calls the real factory with a fake `require`, calls the real
  * `apply` with a mock Cordis context, and asserts the registrations the Web
- * shell depends on were actually made: the `main` page, the
- * `sidebar.panellist` entry, the locale dictionaries, and the stylesheet.
+ * shell depends on were actually made: the Settings section (the default
+ * management entry), its navigation icon, the optional sidebar module (`main`
+ * page + `sidebar.panellist` row), the locale dictionaries, and the stylesheet.
  *
  * Some checks are static (no import/export statements, `require("react")` only,
  * API base string, DSH-only CSS variables): the client may never require
@@ -39,9 +40,9 @@ const failures = [];
  * @param {() => void} fn - The check.
  * @returns {void}
  */
-function check(label, fn) {
+async function check(label, fn) {
 	try {
-		fn();
+		await fn();
 		process.stdout.write(`ok   ${label}\n`);
 	} catch (error) {
 		failures.push(`${label}: ${error.message}`);
@@ -54,6 +55,11 @@ function plain(value) {
 	return JSON.parse(JSON.stringify(value));
 }
 
+/** Let the microtask queue drain so `apply()`'s one `/state` read settles. */
+function flush() {
+	return new Promise((resolve) => setImmediate(resolve));
+}
+
 /* ================================================================ */
 /* static checks: the shipped files                                  */
 /* ================================================================ */
@@ -62,33 +68,33 @@ const source = existsSync(clientPath) ? readFileSync(clientPath, 'utf8') : '';
 const cssSource = existsSync(cssPath) ? readFileSync(cssPath, 'utf8') : '';
 let loadError = null;
 
-check('lib/client.js exists and is not empty', () => {
+await check('lib/client.js exists and is not empty', () => {
 	assert.ok(existsSync(clientPath), 'lib/client.js is missing — the Web shell has no browser half to load');
 	assert.ok(source.trim().length > 0, 'lib/client.js is empty');
 });
 
-check('lib/client.js parses as a classic script', () => {
+await check('lib/client.js parses as a classic script', () => {
 	assert.doesNotThrow(() => new vm.Script(source, { filename: 'lib/client.js' }), 'lib/client.js has a syntax error');
 });
 
-check('the browser half is in module-loader format', () => {
+await check('the browser half is in module-loader format', () => {
 	assert.ok(source.includes('window.__ModuleLoader__.load('), 'lib/client.js does not call window.__ModuleLoader__.load(...)');
 	assert.ok(source.includes('id: "@ds-hu/dsh-better-search"'), 'the registration id must be "@ds-hu/dsh-better-search"');
 	assert.ok(source.includes('factory: (require) =>'), 'the registration needs a factory taking require');
 	assert.ok(source.trimEnd().endsWith('});'), 'the module-loader wrapper is not closed at end of file');
 });
 
-check('lib/client.js contains no import/export statements', () => {
+await check('lib/client.js contains no import/export statements', () => {
 	const statements = [...source.matchAll(/^[ \t]*(?:import|export)\b/gu)].map((match) => match[0]);
 	assert.deepEqual(statements, [], `module-loader format forbids ESM statements, found: ${JSON.stringify(statements)}`);
 });
 
-check('the browser half never references a bare React global', () => {
+await check('the browser half never references a bare React global', () => {
 	const bare = [...source.matchAll(/\bReact\./gu)].map((match) => match[0]);
 	assert.deepEqual(bare, [], `the factory only binds "react"; bare React.* references would crash: ${bare.join(', ')}`);
 });
 
-check('the browser half requires nothing except react', () => {
+await check('the browser half requires nothing except react', () => {
 	const required = [...source.matchAll(/\brequire\(\s*['"]([^'"]+)['"]\s*\)/gu)].map((match) => match[1]);
 	const unexpected = required.filter((specifier) => specifier !== 'react');
 	assert.deepEqual(unexpected, [], `lib/client.js requires ${unexpected.join(', ')}; only "react" exists in the shell's client module table`);
@@ -97,20 +103,20 @@ check('the browser half requires nothing except react', () => {
 	assert.equal(calls, required.length, 'every require() call must be a string literal; the shell cannot resolve a dynamic specifier');
 });
 
-check('the browser half talks only to /better-search/api', () => {
+await check('the browser half talks only to /better-search/api', () => {
 	assert.ok(source.includes('/better-search/api'), 'lib/client.js does not contain the API base "/better-search/api"');
 	const literals = [...source.matchAll(/["'`](\/[^"'`\s]{1,})["'`]/gu)].map((match) => match[1]);
 	const foreign = literals.filter((path) => /^\/[a-z-]+\/api/u.test(path) && !path.startsWith('/better-search/api'));
 	assert.deepEqual(foreign, [], `unexpected API path literal(s): ${foreign.join(', ')}`);
 });
 
-check('the browser half only renders UI (no model-facing tools or Loader rows)', () => {
+await check('the browser half only renders UI (no model-facing tools or Loader rows)', () => {
 	assert.ok(!/\bctx\.tools\b/u.test(source), 'the browser half must not touch ctx.tools');
 	assert.ok(!/\btools\.register\(/u.test(source), 'the browser half must not register a model-facing tool');
 	assert.ok(!/cordis\.patch\.yml/u.test(source), 'the browser half must not edit Loader rows');
 });
 
-check('the browser half never reads stored credentials from the state payload', () => {
+await check('the browser half never reads stored credentials from the state payload', () => {
 	assert.ok(source.includes('keySet'), 'the panel should use keySet to show the saved-key placeholder');
 	assert.ok(source.includes('keyCount'), 'the panel should use keyCount for the multi-key count');
 	assert.ok(!/service\.apiKey\b/u.test(source), 'the browser half must not render service.apiKey');
@@ -118,7 +124,7 @@ check('the browser half never reads stored credentials from the state payload', 
 	assert.ok(!/\.apiKey\b/u.test(source.replace(/body\.apiKey\b/gu, '')), 'the browser half must not read a stored apiKey');
 });
 
-check('key-pool writes use the v2 keys/appendKeys contract', () => {
+await check('key-pool writes use the v2 keys/appendKeys contract', () => {
 	assert.ok(source.includes('body.appendKeys'), 'the edit dialog must append a newly typed key with appendKeys');
 	assert.ok(/body\.keys = \[\]/u.test(source), 'the explicit clear-all action must send keys: []');
 	assert.ok(!source.includes('appendApiKeys'), 'the v1 appendApiKeys payload must be gone');
@@ -126,13 +132,13 @@ check('key-pool writes use the v2 keys/appendKeys contract', () => {
 	assert.ok(!/body\.apiKey\b/u.test(source), 'the v1 apiKey payload must be gone');
 });
 
-check('fetch, usage and key management are wired to the v2 endpoints', () => {
+await check('fetch, usage and key management are wired to the v2 endpoints', () => {
 	for (const literal of ['"/keys"', '"/usage"', '"/fetch"', '"/reveal"']) {
 		assert.ok(source.includes(literal), `the browser half never calls ${literal}`);
 	}
 });
 
-check('lib/client.css exists and mirrors the stylesheet injected by mountCss()', () => {
+await check('lib/client.css exists and mirrors the stylesheet injected by mountCss()', () => {
 	assert.ok(existsSync(cssPath), 'lib/client.css is missing');
 	assert.ok(cssSource.trim().length > 0, 'lib/client.css is empty');
 	const inline = source.match(/const CSS = `\n([\s\S]*?)`;\n/u);
@@ -140,7 +146,7 @@ check('lib/client.css exists and mirrors the stylesheet injected by mountCss()',
 	assert.equal(inline[1].trim(), cssSource.trim(), 'lib/client.css has drifted from the inline stylesheet');
 });
 
-check('the stylesheet uses only DSH theme variables and no hard-coded colors', () => {
+await check('the stylesheet uses only DSH theme variables and no hard-coded colors', () => {
 	const colorLiterals = [...cssSource.matchAll(/#[0-9a-fA-F]{3,8}\b|\b(?:rgb|hsl)a?\(/gu)].map((match) => match[0]);
 	assert.deepEqual(colorLiterals, [], `hard-coded colors are forbidden, found: ${colorLiterals.join(', ')}`);
 	const customVars = [...cssSource.matchAll(/var\((--[a-z0-9-]+)/gu)]
@@ -150,7 +156,7 @@ check('the stylesheet uses only DSH theme variables and no hard-coded colors', (
 	assert.ok(cssSource.includes('var(--dsw-font-family)'), 'the stylesheet must inherit the DSH font family');
 });
 
-check('the stylesheet matches the approved geometry', () => {
+await check('the stylesheet matches the approved geometry', () => {
 	assert.ok(/\.bs-title\{[^}]*font-size:14px;font-weight:400/u.test(cssSource), 'panel title must be 14px/400');
 	assert.ok(/\.bs-card\{[^}]*border-radius:calc\(var\(--dsw-radius-md\) \+ 2px\)/u.test(cssSource), 'service card radius must be 14px (12 + 2)');
 	assert.ok(/\.bs-card\{[^}]*min-height:64px/u.test(cssSource), 'service card min-height must be 64px');
@@ -281,16 +287,19 @@ function createTimers() {
 
 /**
  * Load the browser bundle exactly the way the shell does and apply it.
- * @returns {object} the loaded plugin plus everything it registered.
+ * @param {{state?: any}} [options] - payload `GET /state` answers with.
+ * @returns {Promise<object>} the loaded plugin plus everything it registered.
  */
-function loadBundle() {
+async function loadBundle(options = {}) {
 	const appended = [];
 	const timers = createTimers();
 	const document = createDocument(appended);
 	const fetchCalls = [];
 	const fetch = async (url, init) => {
-		fetchCalls.push({ url: String(url), init });
-		return { ok: true, status: 200, json: async () => ({ ok: true }) };
+		const target = String(url);
+		fetchCalls.push({ url: target, init });
+		const payload = target.endsWith('/state') ? (options.state ?? { ok: true }) : { ok: true };
+		return { ok: true, status: 200, json: async () => payload };
 	};
 	const sandbox = {
 		console,
@@ -368,7 +377,11 @@ function loadBundle() {
 		slots: {
 			inject(name, callback) {
 				log.injected.push(name);
-				callback();
+				const effect = callback();
+				const disposers = typeof effect === 'function' ? [effect] : Array.isArray(effect) ? effect : [];
+				return () => {
+					for (const dispose of disposers) dispose();
+				};
 			},
 			register(definition, component) {
 				log.slots.push({ definition, component });
@@ -379,12 +392,13 @@ function loadBundle() {
 		},
 	};
 	loaded.apply(ctx);
-	return { registration, exports: loaded, log, timers, appended, dictionaries, requires };
+	await flush();
+	return { registration, exports: loaded, log, timers, appended, dictionaries, requires, fetchCalls };
 }
 
 let bundle = null;
 try {
-	bundle = source === '' ? null : loadBundle();
+	bundle = source === '' ? null : await loadBundle();
 } catch (error) {
 	loadError = error;
 	process.stdout.write(`FAIL lib/client.js could not be loaded\n     ${String(error.stack ?? error.message).split('\n').slice(0, 8).join('\n     ')}\n`);
@@ -400,12 +414,12 @@ function bundleOrFail() {
 /* runtime checks                                                    */
 /* ================================================================ */
 
-check('the factory registers under the package name', () => {
+await check('the factory registers under the package name', () => {
 	const loaded = bundleOrFail();
 	assert.equal(loaded.registration.id, packageName, `__ModuleLoader__.load id must equal package.json name (${packageName})`);
 });
 
-check('the module exports a plugin shape', () => {
+await check('the module exports a plugin shape', () => {
 	const loaded = bundleOrFail();
 	assert.equal(typeof loaded.exports.name, 'string', 'the module must export a `name` string');
 	assert.ok(loaded.exports.name.length > 0, 'the exported name is empty');
@@ -415,13 +429,28 @@ check('the module exports a plugin shape', () => {
 	assert.equal(typeof loaded.exports.apply, 'function', 'the module must export `apply`');
 });
 
-check('exactly two slots are registered', () => {
+await check('the settings section and its icon are registered', () => {
 	const loaded = bundleOrFail();
-	assert.deepEqual(loaded.log.injected.slice().sort(), ['main', 'sidebar.panellist'], 'the client registers the sidebar entry and the page, nothing else');
-	assert.equal(loaded.log.slots.length, 2, `expected two slot registrations, got ${loaded.log.slots.length}`);
+	const section = loaded.log.slots.find((entry) => entry.definition.name === 'settings.section');
+	assert.ok(section, 'settings.section was not registered; Settings would have no management entry');
+	assert.equal(section.definition.id, 'better-search', 'settings.section id must be "better-search"');
+	assert.equal(section.definition.order, 12, 'settings.section order must place it between Models (10) and Built-in plugins (15)');
+	assert.equal(section.definition.locale, 'betterSearch', 'the settings section locale namespace must be "betterSearch"');
+	assert.equal(typeof section.definition.label, 'function', 'the settings section needs a navigation label function');
+	assert.equal(section.definition.label(), '搜索服务', 'the settings navigation label must resolve to 搜索服务');
+	const icon = loaded.log.slots.find((entry) => entry.definition.name === 'settings.section.icon');
+	assert.ok(icon, 'settings.section.icon was not registered');
+	assert.equal(icon.definition.id, 'better-search', 'settings.section.icon id must match the section id');
+	assert.equal(typeof icon.component, 'function', 'the settings icon needs a component');
+	assert.deepEqual(
+		loaded.log.injected.slice().sort(),
+		['main', 'settings.section', 'settings.section.icon', 'sidebar.panellist'],
+		'the client registers the Settings entry and the optional sidebar module, nothing else',
+	);
+	assert.equal(loaded.log.slots.length, 4, `expected four slot registrations, got ${loaded.log.slots.length}`);
 });
 
-check('the sidebar panellist entry is registered as agreed', () => {
+await check('the sidebar panellist entry is registered as agreed', () => {
 	const loaded = bundleOrFail();
 	const slot = loaded.log.slots.find((entry) => entry.definition.name === 'sidebar.panellist');
 	assert.ok(slot, 'sidebar.panellist was not registered');
@@ -438,7 +467,7 @@ check('the sidebar panellist entry is registered as agreed', () => {
 	assert.equal(label, '搜索服务', 'zh is the primary locale, label() should resolve to 搜索服务');
 });
 
-check('the main page is registered under key better-search', () => {
+await check('the main page is registered under key better-search', () => {
 	const loaded = bundleOrFail();
 	const slot = loaded.log.slots.find((entry) => entry.definition.name === 'main');
 	assert.ok(slot, 'the main slot was not registered');
@@ -447,7 +476,7 @@ check('the main page is registered under key better-search', () => {
 	assert.equal(typeof slot.component, 'function', 'the main slot needs a page component');
 });
 
-check('one locale namespace carries zh and en dictionaries', () => {
+await check('one locale namespace carries zh and en dictionaries', () => {
 	const loaded = bundleOrFail();
 	assert.equal(loaded.log.locale.length, 1, 'expected exactly one locale.register() call');
 	const registration = loaded.log.locale[0];
@@ -468,7 +497,7 @@ check('one locale namespace carries zh and en dictionaries', () => {
 	}
 });
 
-check('the copy comes from the Kelivo UI spec where it exists', () => {
+await check('the copy comes from the Kelivo UI spec where it exists', () => {
 	const dictionary = bundleOrFail().dictionaries.betterSearch;
 	assert.ok(dictionary, 'the betterSearch dictionary was not registered');
 	const specKeys = [
@@ -549,7 +578,7 @@ check('the copy comes from the Kelivo UI spec where it exists', () => {
 	assert.equal(dictionary.zh.searchServicesPageWebFetchUnsupported, '当前搜索服务不支持网页抓取', 'fetch follow warning drifted');
 });
 
-check('the stylesheet is mounted once and removed on dispose', () => {
+await check('the stylesheet is mounted once and removed on dispose', () => {
 	const loaded = bundleOrFail();
 	const styles = loaded.appended.filter((node) => node.tagName === 'style');
 	assert.equal(styles.length, 1, `apply() should mount exactly one <style>, found ${styles.length}`);
@@ -557,7 +586,7 @@ check('the stylesheet is mounted once and removed on dispose', () => {
 	assert.ok(styles[0].textContent.trim().length > 0, 'the mounted style tag is empty');
 });
 
-check('CSS mounting is idempotent', () => {
+await check('CSS mounting is idempotent', () => {
 	const loaded = bundleOrFail();
 	const api = loaded.exports.__bsTest;
 	assert.equal(typeof api.mountCss, 'function', '__bsTest.mountCss is not exported');
@@ -574,15 +603,50 @@ check('CSS mounting is idempotent', () => {
 	assert.equal(styles().length, 0, 'the remounted stylesheet was not removed');
 });
 
-check('apply() performs no network request and creates no timer before the page mounts', () => {
+await check('apply() reads /state once to decide the sidebar module and starts no timer', () => {
 	const loaded = bundleOrFail();
-	assert.deepEqual(loaded.log.fetchCalls, [], 'apply() must not fetch; polling belongs to the mounted page');
+	assert.equal(loaded.log.fetchCalls.length, 1, `apply() should make exactly one request, got ${loaded.log.fetchCalls.length}`);
+	assert.ok(loaded.log.fetchCalls[0].url.endsWith('/state'), 'the single request must be GET /state for the persisted UI preference');
 	assert.deepEqual(loaded.log.requires, ['react'], 'the factory must require react exactly once');
 	const intervals = loaded.timers.created.filter((timer) => timer.kind === 'interval');
 	assert.deepEqual(intervals, [], 'apply() must not start an interval; the page effect owns polling');
 });
 
-check('helpers behave as the panel expects', () => {
+await check('the sidebar module is independent and switchable', async () => {
+	const disabled = await loadBundle({ state: { ok: true, ui: { sidebarPanel: false } } });
+	assert.equal(disabled.exports.__bsTest.isSidebarModuleMounted(), false, 'a host preference of false must not mount the sidebar module');
+	assert.equal(disabled.log.slots.length, 2, 'the sidebar page and row must be unregistered when the module is off');
+	assert.deepEqual(
+		disabled.log.slots.map((entry) => entry.definition.name).sort(),
+		['settings.section', 'settings.section.icon'],
+		'only the Settings entry survives when the sidebar module is off',
+	);
+
+	const api = disabled.exports.__bsTest;
+	api.applySidebarPreference(true);
+	assert.equal(api.isSidebarModuleMounted(), true, 'switching the module on must mount it live');
+	assert.equal(disabled.log.slots.length, 4, 'switching the module on must register the page and the row');
+	const row = disabled.log.slots.find((entry) => entry.definition.name === 'sidebar.panellist');
+	assert.equal(row.definition.id, 'better-search', 'the live-mounted sidebar row must keep its id');
+
+	api.applySidebarPreference(false);
+	assert.equal(api.isSidebarModuleMounted(), false, 'switching the module off must unmount it live');
+	assert.equal(disabled.log.slots.length, 2, 'switching the module off must remove the page and the row');
+});
+
+await check('the Settings section renders the sidebar-module switch', () => {
+	const api = bundleOrFail().exports.__bsTest;
+	const section = api.SearchServicesSettings();
+	assert.equal(section.type, api.SearchServicesManager, 'the Settings entry must render the shared manager');
+	assert.equal(section.props.variant, 'settings', 'the Settings entry must use the settings variant');
+	const card = api.SidebarModuleCard({ enabled: false, disabled: false, onChange: () => {} });
+	const serialized = JSON.stringify(card);
+	assert.ok(serialized.includes('sidebar-module'), 'the switch is missing its test id');
+	assert.ok(serialized.includes('sidebar-module-section'), 'the switch is missing its section card');
+	assert.ok(serialized.includes('"checked":false'), 'the switch must reflect the disabled preference');
+});
+
+await check('helpers behave as the panel expects', () => {
 	const api = bundleOrFail().exports.__bsTest;
 	assert.equal(typeof api, 'object', '__bsTest was not exported');
 
@@ -642,7 +706,7 @@ check('helpers behave as the panel expects', () => {
 	assert.equal(api.fetchTargetService(services, 'better-search/svc_missing'), null, 'unknown fetch targets are null');
 });
 
-check('the panel icon renders a magnifier + spark SVG', () => {
+await check('the panel icon renders a magnifier + spark SVG', () => {
 	const api = bundleOrFail().exports.__bsTest;
 	const tree = api.PanelIcon({ size: 18, active: true });
 	assert.equal(tree.type, 'svg', 'PanelIcon must render an inline <svg>');

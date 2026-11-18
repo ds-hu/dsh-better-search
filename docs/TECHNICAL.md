@@ -7,6 +7,7 @@ one of them is a bug.
 
 - [Why a plugin and not a replacement](#why-a-plugin-and-not-a-replacement)
 - [Shape of the bundle](#shape-of-the-bundle)
+- [Two browser entries, one manager](#two-browser-entries-one-manager)
 - [Selection is a pin, not a registry write](#selection-is-a-pin-not-a-registry-write)
 - [Data model](#data-model)
 - [Provider registry](#provider-registry)
@@ -55,7 +56,7 @@ lib/api.js            HTTP router under /better-search/api
 lib/http.js           node:http helpers (same-origin fence, bounded JSON body)
 lib/catalog.js        provider descriptor table (26 entries)
 lib/search/*          adapters, one module per request-shape family
-lib/client.js         browser module (module-loader format, no build step)
+lib/client.js         browser module: Settings entry + optional sidebar module (no build step)
 lib/client.css        mirror of the stylesheet inlined into client.js (kept in sync by a test)
 assets/brands/*.svg   brand icons served by GET /brand/:file
 ```
@@ -63,6 +64,29 @@ assets/brands/*.svg   brand icons served by GET /brand/:file
 The Host half is a normal Cordis plugin: `inject = ['webServer', 'web']`, `apply(ctx)` loads the
 store, reconciles registrations, applies the pin, and registers one prefix route. The browser half
 is declared through `dsh.client` and loaded by the Web shell like any other client plugin.
+
+## Two browser entries, one manager
+
+The plugin ships one management UI in two surfaces:
+
+- **Settings (default).** `lib/client.js` registers a `settings.section` contribution
+  (`id: "better-search"`, `order: 12`, between *Models* and *Built-in plugins*) plus the matching
+  `settings.section.icon` row. The section renders the manager in its `settings` variant: a 760 px
+  settings page with its own heading, no page-level scroll container and no page background, so it
+  sits in the Settings shell like the Models/Plugins pages. The slot declarations belong to
+  `@deepseek-ai/dsh-client-ui-settings-general`; `ctx.slots.inject` waits for them, so a composition
+  without the Settings shell simply shows no section instead of failing.
+- **Sidebar module (optional).** The historical `main` page (`key: "better-search"`) and
+  `sidebar.panellist` row (`id: "better-search"`, `order: 5`) are mounted by one module in
+  `apply()`. `apply` mounts it optimistically, then reads `GET /state` once and reconciles with the
+  persisted `ui.sidebarPanel` preference (`false` unmounts it). The Settings section renders a
+  **Sidebar entry** switch; flipping it issues `PUT /ui` and mounts/unmounts both slot
+  contributions live through their `slots.inject` disposers — no reload, no restart. A Host half
+  older than 0.4 has no `ui` block, so the module stays mounted and the switch reports the failed
+  write in a localized banner.
+
+Both surfaces share `SearchServicesManager`; only the frame (heading, background, scroll behaviour)
+and the settings-only switch row differ.
 
 ## Selection is a pin, not a registry write
 
@@ -106,7 +130,7 @@ value, so the panel always highlights what is actually in effect even if the sto
 
 ```jsonc
 {
-  "version": 1,
+  "version": 3,
   "services": [{
     "id": "svc_1y1ga8t1",       // local, stable, never exposed as a provider id
     "type": "tavily",           // catalog type id
@@ -119,12 +143,15 @@ value, so the panel always highlights what is actually in effect even if the sto
   }],
   "selectedId": "svc_1y1ga8t1", // or "builtin:<providerId>"
   "common": { "maxResults": 8, "timeoutMs": 30000, "autoTestOnLaunch": true },
-  "fetch": { "mode": "official", "serviceId": "" }   // official | follow | service
+  "fetch": { "mode": "official", "serviceId": "" },  // official | follow | service
+  "ui": { "sidebarPanel": true }                     // optional sidebar module, default on
 }
 ```
 
 v1 files (`apiKey` + `apiKeys[]`) are migrated on load: same order, generated `key_` ids,
-`version` becomes 2.
+`version` becomes 2. v2 files inherit `ui: { sidebarPanel: true }`; `version` becomes 3. The `ui`
+block holds browser-surface preferences only — provider configuration stays in `services`, `common`
+and `fetch`.
 
 Invariants:
 
@@ -243,6 +270,7 @@ follow-up request.
 | `PUT /fetch` | `{mode, serviceId?}` → pin `web.fetchProvider` |
 | `POST /reorder` | reorder stored services |
 | `PUT /common` | clamp and store general options |
+| `PUT /ui` | store `{ sidebarPanel?: boolean }`; omitted fields keep their value, non-booleans are `invalid-field` |
 | `GET /brand/:file` | brand SVG from `assets/brands/`, 1-day cache |
 
 `pin` failures are reported, not thrown: a mutation that saves fine but cannot write
@@ -252,15 +280,17 @@ service is stored and the next attempt may succeed (e.g. after the `web` row is 
 ## Browser half
 
 `lib/client.js` is a plain module-loader module (no build step): `window.__ModuleLoader__.load({ id,
-factory })`, `require("react")` only, `h()` instead of JSX. It registers exactly two slots:
+factory })`, `require("react")` only, `h()` instead of JSX. It registers:
 
+- `settings.section` + `settings.section.icon`, `id: "better-search"`, `order: 12` — the default
+  management entry (always registered);
 - `sidebar.panellist`, `id: "better-search"`, `order: 5` — between 插件 (`plugins`, 0) and
-  自动化任务 (`schedules`, 10);
-- `main`, `key: "better-search"` — the page.
+  自动化任务 (`schedules`, 10), plus `main`, `key: "better-search"` — the optional sidebar module.
 
-State comes from `GET /state` polled every 4 s while the page is mounted, plus `GET /catalog` once
-(cached). All mutations are `fetch` calls to the Host, then the returned state replaces local state.
-The page never learns a credential: password inputs start empty and only send a value the user typed.
+State comes from `GET /state` (once in `apply` to decide the sidebar module, then polled every 4 s
+while a surface is mounted), plus `GET /catalog` once (cached). All mutations are `fetch` calls to
+the Host, then the returned state replaces local state. The page never learns a credential: password
+inputs start empty and only send a value the user typed.
 
 The page has three extra surfaces beyond v1: the **抓取方式** row (a `_WebFetchModeRow` port with a
 168 px select), the **账户用量** card in the edit dialog (Wallet icon, refresh, Tavily progress bar,
@@ -287,15 +317,18 @@ no fetch-mode row, no fetch badge on cards, no fetch-related copy.
 | Test always "连接失败" with 401 | wrong key — the provider's message is shown as-is | adapter `HttpFailure` |
 | Card status resets to 未测试 after a `dsh web` restart | connection status is in-memory by design (Kelivo parity) | `registry.connections` |
 | Duplicate entry failure on boot | the bundle patch is applied twice (profile-layer insert + bundle) | keep only one source for row `dsh-better-search` |
+| Sidebar-entry switch reports a failed write | the running Host half predates 0.4 (no `PUT /ui`); restart `dsh web` after updating the package | `lib/api.js` |
+| Sidebar row missing after boot although `ui.sidebarPanel` is true | the initial `GET /state` failed; the module is kept mounted optimistically, any later poll/state answer reconciles it | `noteStatePayload()` |
 
 ## Testing
 
 - `test/host.test.mjs` — store, registry and router against a fake `ctx.web` / `ctx.settings`:
   provider registration, pinning, delete fallback, clamping, cross-origin fence, brand serving,
-  unload restore, reload from disk (16 cases).
+  unload restore, reload from disk, the v3 `ui` preference (37 cases).
 - `test/adapters.test.mjs` — per-family mapping with a fake `fetch`: happy path, count clamp,
   `maxResults` slice, non-2xx → `HttpFailure`, empty results (29 cases).
-- `test/client-smoke.mjs` — module format, slot registration, zh/en dictionaries, CSS idempotence,
+- `test/client-smoke.mjs` — module format, the Settings section + icon registrations, the live
+  sidebar-module switch, the settings-variant switch row, zh/en dictionaries, CSS idempotence,
   `lib/client.css` ↔ inline stylesheet parity, helper behaviour, icon shape.
 
 Tests are offline by construction: adapters receive their `fetch` through

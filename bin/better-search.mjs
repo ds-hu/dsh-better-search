@@ -69,6 +69,7 @@ function status() {
   console.log(`services:  ${services.length} (${new Set(services.map((service) => service.type)).size} types, ${keys} keys)`);
   console.log(`selected:  ${document?.selectedId ?? '(none)'}`);
   console.log(`fetch:     ${document?.fetch?.mode ?? 'official'}`);
+  console.log(`sidebar:   ${document?.ui?.sidebarPanel === false ? 'off' : 'on'}`);
   console.log(`size:      ${humanSize(statSync(storeFile()).size)}`);
   const backups = readdirSync(dir).filter((name) => name.includes('.bak'));
   if (backups.length > 0) console.log(`backups:   ${backups.length} file(s) in ${dir}`);

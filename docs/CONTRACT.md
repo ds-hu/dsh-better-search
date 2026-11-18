@@ -93,6 +93,7 @@ status. Body cap 64 KiB. Same-origin check like the mcp-manager.
 | `POST /services/:id/test` | — | performs a real query `connectivity test` with `maxResults: 1`; `{ ok, result, ms }` or `{ ok:false, error }`; updates `connected` |
 | `POST /reorder` | `{ ids: ["svc_a", "svc_b"] }` | reorder `services` |
 | `PUT /common` | `{ maxResults?, timeoutMs?, autoTestOnLaunch? }` | clamped: maxResults 1–50, timeout 1000–300000 |
+| `PUT /ui` | `{ sidebarPanel?: boolean }` | browser-surface preferences; omitted fields keep their value; non-boolean `sidebarPanel` is 400 `invalid-field` |
 | `GET /brand/:file` | — | serves `assets/brands/<file>` with a long cache; `content-type: image/svg+xml` |
 
 Delete rule: the Host refuses to delete the last service **only** when the
@@ -207,8 +208,8 @@ Behaviour to implement (Kelivo parity, minus fetch):
 - `test/adapters.test.mjs` uses a fake `fetch`
   injected through `http.js`'s `setFetchForTests(fn)`.
 - `node test/client-smoke.mjs` loads `lib/client.js`
-  in a stub `window.__ModuleLoader__` and asserts `apply` registers both slots
-  with a fake context.
+  in a stub `window.__ModuleLoader__` and asserts `apply` registers the Settings
+  entry, its icon and the optional sidebar module with a fake context.
 
 ---
 
@@ -453,3 +454,58 @@ selection no longer produces a false drift when DSH's provider is `http`.
 
 `bin/better-search.mjs` (`dsh-better-search status|path|clean --yes`) removes the
 store directory; `status` never prints credentials.
+
+---
+
+# v0.4 — Settings entry and the optional sidebar module
+
+This section supersedes the matching parts above. Everything not restated here keeps its
+previous shape.
+
+## Store v3 (`$DSH_HOME/better-search/store.json`)
+
+```jsonc
+{
+  "version": 3,
+  "services": [/* … unchanged … */],
+  "selectedId": "…",
+  "common": { "maxResults": 8, "timeoutMs": 30000, "autoTestOnLaunch": true },
+  "fetch": { "mode": "official", "serviceId": "" },
+  "ui": { "sidebarPanel": true }        // browser-surface preference, default true
+}
+```
+
+`ui` holds presentation preferences only; provider configuration stays in `services`, `common` and
+`fetch`. Migration from v2 sets `ui: { sidebarPanel: true }` and bumps `version` to 3.
+
+## State addition
+
+`GET /state` (and every mutation answer) carries the whole `ui` block:
+
+```jsonc
+{ "…": "…", "ui": { "sidebarPanel": true } }
+```
+
+An older Host half omits `ui`; a current browser half then keeps the sidebar module mounted (the
+historical behaviour) and reports the `PUT /ui` write failure in a localized banner.
+
+## Browser registrations
+
+| Slot | Options | When |
+|---|---|---|
+| `settings.section` | `id: "better-search"`, `order: 12`, `locale: "betterSearch"`, `label: () => t("settings.nav")` | always (default management entry) |
+| `settings.section.icon` | `id: "better-search"`, `order: 12` | always, matches the section id |
+| `main` | `key: "better-search"`, `locale: "betterSearch"` | while `ui.sidebarPanel === true` |
+| `sidebar.panellist` | `id: "better-search"`, `order: 5`, `label: () => t("panel")` | while `ui.sidebarPanel === true` |
+
+`apply()` mounts the sidebar module optimistically, then reads `GET /state` once and unmounts it
+when `ui.sidebarPanel === false`. The Settings section's **Sidebar entry** switch sends
+`PUT /ui { sidebarPanel }` and mounts/unmounts both sidebar slots live from the returned state.
+
+## `PUT /ui`
+
+- Body: `{ "sidebarPanel": boolean }`; an omitted field keeps the stored value.
+- Answer: the full `state` (same payload as `GET /state`).
+- `sidebarPanel` must be a JSON boolean; anything else is `400 invalid-field`.
+- The write is serialized through the store queue and persisted atomically like every other
+  mutation.

@@ -1,10 +1,12 @@
 # Search services for DeepSeek Harness
 
-**搜索服务 · manage the providers behind `web_search` and `web_fetch`, from the sidebar.**
+**搜索服务 · manage the providers behind `web_search` and `web_fetch`, from DSH's Settings.**
 
 A [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) plugin that recreates
 [Kelivo](https://github.com/Chevey339/kelivo)'s *Search services* pane inside DSH — cards, live status,
-multi-key pools, account balance and page-fetch routing — in the harness's own theme.
+multi-key pools, account balance and page-fetch routing — in the harness's own theme. The default
+management entry is **Settings → Search services**; the original sidebar page ships as an independent
+module that can be switched on and off from that page.
 
 <p align="center">
   <a href="https://www.npmjs.com/package/@ds-hu/dsh-better-search"><img alt="npm" src="https://img.shields.io/npm/v/@ds-hu/dsh-better-search?color=2E7DD1"></a>
@@ -35,10 +37,17 @@ multi-key pools, account balance and page-fetch routing — in the harness's own
 - **No fighting with DSH's own settings** — change the switch on the official **网页搜索** page and the
   panel follows it (and says so) without dropping your page-fetch mode; a pin left behind by a
   removed service is healed automatically.
+- **Settings first, sidebar optional** — the management page lives in **Settings → Search services**.
+  The sidebar entry is a separate module with its own **Sidebar entry** switch (on by default,
+  applied live): turn it off to keep the sidebar clean, and manage everything from Settings.
 - **Light and dark** — follows the harness theme; no hard-coded colours.
 
 <p align="center">
   <img src="https://raw.githubusercontent.com/ds-hu/dsh-better-search/main/docs/screenshots/hero-dark.png" alt="The same page in dark mode">
+</p>
+
+<p align="center">
+  <img src="https://raw.githubusercontent.com/ds-hu/dsh-better-search/main/docs/screenshots/settings-page.png" alt="Settings → Search services: the default management entry, with the Sidebar entry module switch">
 </p>
 
 ## Screenshots
@@ -69,7 +78,9 @@ and restart `dsh web`:
 
 ## Use
 
-1. Open **搜索服务 / Search services** in the sidebar (between *插件* and *自动化任务*).
+1. Open **Settings** (the menu at the foot of the sidebar) → **Search services**, or click the
+   **Search services** icon in the sidebar while its module is on. The settings page is the default
+   entry; the sidebar page is optional and can be switched under **Sidebar entry** on the same page.
 2. **+** → pick a provider → paste the key → **Add**.
 3. Click the card to activate it — the built-in `web_search` tool uses it immediately, no restart.
 4. ♥ tests the connection, ⚙ edits, 🗑 deletes; drag cards to reorder.
@@ -94,9 +105,10 @@ Firecrawl, TinyFish, AnySearch, Parallel, You.com.
 
 ## Uninstall & cleanup
 
-Uninstalling while `dsh web` runs removes the panel, the HTTP route and every dynamic provider, and
-restores the profile's provider fields. Your service list and keys stay in `$DSH_HOME/better-search/`
-on purpose — remove them only when you mean it:
+Uninstalling while `dsh web` runs removes both management entries, the HTTP route and every dynamic
+provider, and restores the profile's provider fields. Your service list, keys and the
+sidebar-entry preference stay in `$DSH_HOME/better-search/` on purpose — remove them only when you
+mean it:
 
 ```sh
 dsh-better-search status      # what is stored (never prints keys)

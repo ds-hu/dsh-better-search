@@ -14,7 +14,7 @@ import { after, beforeEach, describe, it } from 'node:test';
 import { API_PREFIX, createApi } from '../lib/api.js';
 import { PROVIDERS, providerOf } from '../lib/catalog.js';
 import { createRegistry } from '../lib/registry.js';
-import { createStore, DEFAULT_COMMON, maskKey } from '../lib/store.js';
+import { createStore, DEFAULT_COMMON, DEFAULT_UI, maskKey } from '../lib/store.js';
 
 /** One fake Harness context with the two services the plugin talks to. */
 function fakeHarness() {
@@ -179,6 +179,7 @@ describe('dsh-better-search host', () => {
     assert.equal(json.selectedId, 'builtin:deepseek-search-api');
     assert.equal(json.common.maxResults, DEFAULT_COMMON.maxResults);
     assert.deepEqual(json.fetch, { mode: 'official', serviceId: '', providerId: '', pin: { ok: true, error: null } });
+    assert.deepEqual(json.ui, DEFAULT_UI);
   });
 
   it('creates a service with a key pool, registering search and fetch', async () => {
@@ -587,12 +588,40 @@ describe('dsh-better-search host', () => {
     const migrated = createStore({ dir, descriptorOf: providerOf });
     await migrated.load();
     const snapshot = migrated.snapshot();
-    assert.equal(snapshot.version, 2);
+    assert.equal(snapshot.version, 3);
     assert.equal(snapshot.services.length, 1);
     assert.equal(snapshot.services[0].keys.length, 2);
     assert.equal(snapshot.services[0].keys[0].value, 'tvly-old');
     assert.equal(snapshot.services[0].apiKey, undefined);
     assert.equal(snapshot.common.maxResults, 5);
     assert.deepEqual(snapshot.fetch, { mode: 'official', serviceId: '' });
+    assert.deepEqual(snapshot.ui, DEFAULT_UI);
+  });
+
+  it('stores the sidebar-module preference and survives a reload', async () => {
+    const flipped = await call({ method: 'PUT', path: '/ui', body: { sidebarPanel: false } });
+    assert.equal(flipped.status, 200);
+    assert.deepEqual(flipped.json.ui, { sidebarPanel: false });
+
+    const reloaded = createStore({ dir, descriptorOf: providerOf });
+    await reloaded.load();
+    assert.deepEqual(reloaded.snapshot().ui, { sidebarPanel: false });
+
+    const state = await call({ path: '/state' });
+    assert.deepEqual(state.json.ui, { sidebarPanel: false });
+  });
+
+  it('keeps the stored sidebar preference when a UI patch omits it', async () => {
+    await call({ method: 'PUT', path: '/ui', body: { sidebarPanel: false } });
+    const patched = await call({ method: 'PUT', path: '/ui', body: {} });
+    assert.deepEqual(patched.json.ui, { sidebarPanel: false });
+  });
+
+  it('rejects a non-boolean sidebar preference', async () => {
+    const rejected = await call({ method: 'PUT', path: '/ui', body: { sidebarPanel: 'no' } });
+    assert.equal(rejected.status, 400);
+    assert.equal(rejected.json.code, 'invalid-field');
+    const state = await call({ path: '/state' });
+    assert.deepEqual(state.json.ui, DEFAULT_UI);
   });
 });

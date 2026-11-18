@@ -1,10 +1,11 @@
 # 搜索服务 · DeepSeek Harness 插件
 
-**搜索服务 · 在侧边栏管理 `web_search` 和 `web_fetch` 背后的服务商。**
+**搜索服务 · 在 DSH 的设置里管理 `web_search` 和 `web_fetch` 背后的服务商。**
 
 这是一个 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) 插件，把
 [Kelivo](https://github.com/Chevey339/kelivo) 的「搜索服务」面板搬进 DSH：服务卡片、实时状态、
-多 Key 池、账户额度、网页抓取路由，全部使用 Harness 自己的主题。
+多 Key 池、账户额度、网页抓取路由，全部使用 Harness 自己的主题。默认管理入口是
+**设置 → 搜索服务**；原来的侧边栏页面则作为独立模块存在，可以在同一个页面里开关。
 
 <p align="center">
   <a href="https://www.npmjs.com/package/@ds-hu/dsh-better-search"><img alt="npm" src="https://img.shields.io/npm/v/@ds-hu/dsh-better-search?color=2E7DD1"></a>
@@ -32,10 +33,16 @@
   服务商之一。
 - **不和官方设置打架** —— 在官方「网页搜索」页拨开关时，面板会自动跟随并给出提示，同时保留你选择的
   抓取方式；服务被删除后残留的选择会被自动修复。
+- **设置优先，侧边栏可选** —— 管理页面默认在 **设置 → 搜索服务**。侧边栏入口是一个独立模块，
+  有自己的「侧边栏入口」开关（默认开启、即时生效）：关掉它可以让侧边栏保持清爽，全部改从设置里管理。
 - **浅色 / 深色** —— 跟随 Harness 主题，没有写死的颜色。
 
 <p align="center">
   <img src="https://raw.githubusercontent.com/ds-hu/dsh-better-search/main/docs/screenshots/hero-dark.png" alt="同一页面的深色模式">
+</p>
+
+<p align="center">
+  <img src="https://raw.githubusercontent.com/ds-hu/dsh-better-search/main/docs/screenshots/settings-page.png" alt="设置 → 搜索服务：默认管理入口，以及「侧边栏入口」模块开关">
 </p>
 
 ## 截图
@@ -66,7 +73,8 @@ dsh plugin --profile web add github:ds-hu/dsh-better-search
 
 ## 使用
 
-1. 侧边栏打开 **搜索服务**（位于「插件」与「自动化任务」之间）。
+1. 打开 **设置**（侧边栏底部的菜单）→ **搜索服务**；侧边栏模块开启时也可以直接点侧边栏的
+   **搜索服务** 图标。默认入口是设置页；侧边栏页面是可选的，在同一页的「侧边栏入口」里开关。
 2. **+** → 选服务商 → 粘贴 Key → **添加**。
 3. 点卡片启用它 —— 内置的 `web_search` 立刻改用这家服务，无需重启。
 4. ♥ 测试连接、⚙ 编辑、🗑 删除；拖动卡片调整顺序。
@@ -89,8 +97,9 @@ Firecrawl、TinyFish、AnySearch、Parallel、You.com。
 
 ## 卸载与清理
 
-在 `dsh web` 运行中卸载：面板、HTTP 路由、所有动态 provider 都会被移除，profile 里的两个
-服务商字段会恢复原值。服务列表和 Key 仍会留在 `$DSH_HOME/better-search/`（这是有意的），需要时再清：
+在 `dsh web` 运行中卸载：两个管理入口、HTTP 路由、所有动态 provider 都会被移除，profile 里的两个
+服务商字段会恢复原值。服务列表、Key 和侧边栏入口偏好仍会留在 `$DSH_HOME/better-search/`
+（这是有意的），需要时再清：
 
 ```sh
 dsh-better-search status      # 查看存了什么（不会打印 Key）
