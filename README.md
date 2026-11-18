@@ -33,7 +33,8 @@ multi-key pools, account balance and page-fetch routing — in the harness's own
 - **Page fetching is configurable too** — pick who reads pages: follow the active search service,
   keep DSH's own fetch provider, or pin any of the 13 fetch-capable services.
 - **No fighting with DSH's own settings** — change the switch on the official **网页搜索** page and the
-  panel follows it (and says so); a pin left behind by a removed service is healed automatically.
+  panel follows it (and says so) without dropping your page-fetch mode; a pin left behind by a
+  removed service is healed automatically.
 - **Light and dark** — follows the harness theme; no hard-coded colours.
 
 <p align="center">

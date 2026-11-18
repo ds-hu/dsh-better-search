@@ -426,6 +426,102 @@ describe('dsh-better-search host', () => {
     assert.equal(reconciled.json.notice.code, 'search-external');
     assert.equal(reconciled.json.drift.search, null);
     assert.equal(harness.settingsState.value.searchProvider, 'deepseek-search-api');
+    // Nothing owned fetch before the switch, so the default mode is untouched.
+    assert.equal(reconciled.json.fetch.mode, 'official');
+    assert.equal(reconciled.json.notice.fetchKept, undefined);
+  });
+
+  it('keeps follow mode when DSH own switch rewrites both fields', async () => {
+    const created = await call({ method: 'POST', path: '/services', body: { type: 'tavily', keys: ['tvly-1'] } });
+    const id = created.json.services[0].id;
+    await call({ method: 'PUT', path: '/fetch', body: { mode: 'follow' } });
+    assert.equal(harness.settingsState.value.fetchProvider, `better-search/${id}`);
+    const writesBefore = harness.updates.length;
+    // The official switch writes searchProvider and fetchProvider atomically, so a
+    // fetch-only interpretation would be an artifact of the polling boundary.
+    harness.settingsState.value = { searchProvider: 'deepseek-search-api', fetchProvider: 'deepseek-fetch-api' };
+    const drifted = await call({ path: '/state' });
+    assert.ok(drifted.json.drift.search !== null);
+    assert.ok(drifted.json.drift.fetch !== null);
+    const reconciled = await call({ method: 'POST', path: '/reconcile' });
+    assert.equal(reconciled.status, 200);
+    assert.equal(reconciled.json.selectedId, 'builtin:deepseek-search-api');
+    assert.equal(reconciled.json.fetch.mode, 'follow');
+    assert.equal(reconciled.json.fetch.providerId, '');
+    assert.equal(harness.settingsState.value.fetchProvider, 'deepseek-fetch-api');
+    assert.equal(harness.updates.length, writesBefore, 'adoption must only write the store');
+    assert.equal(reconciled.json.drift.fetch, null);
+    assert.equal(reconciled.json.notice.code, 'search-external');
+    assert.deepEqual(reconciled.json.notice.fetchKept, { mode: 'follow' });
+    // Switching back to a stored provider re-asserts the preserved follow pin.
+    const selected = await call({ method: 'POST', path: '/select', body: { id } });
+    assert.equal(harness.settingsState.value.searchProvider, `better-search/${id}`);
+    assert.equal(harness.settingsState.value.fetchProvider, `better-search/${id}`);
+    assert.equal(selected.json.fetch.mode, 'follow');
+    assert.equal(selected.json.drift.fetch, null);
+  });
+
+  it('keeps follow mode across the Messages direction and does not treat http as drift', async () => {
+    await call({ method: 'POST', path: '/services', body: { type: 'tavily', keys: ['tvly-1'] } });
+    await call({ method: 'PUT', path: '/fetch', body: { mode: 'follow' } });
+    harness.settingsState.value = { searchProvider: 'deepseek-official', fetchProvider: 'http' };
+    const reconciled = await call({ method: 'POST', path: '/reconcile' });
+    assert.equal(reconciled.json.selectedId, 'builtin:deepseek-official');
+    assert.equal(reconciled.json.fetch.mode, 'follow');
+    assert.equal(harness.settingsState.value.fetchProvider, 'http');
+    assert.equal(reconciled.json.drift.fetch, null);
+    assert.deepEqual(reconciled.json.notice.fetchKept, { mode: 'follow' });
+    // `http` is a shipped provider, not a leftover of this plugin: it must not
+    // keep producing drift and triggering another reconcile on the next panel poll.
+    const again = await call({ path: '/state' });
+    assert.equal(again.json.drift.search, null);
+    assert.equal(again.json.drift.fetch, null);
+    const second = await call({ method: 'POST', path: '/reconcile' });
+    assert.equal(second.json.fetch.mode, 'follow');
+    assert.equal(harness.settingsState.value.fetchProvider, 'http');
+  });
+
+  it('preserves an explicit fetch service across the official switch', async () => {
+    const created = await call({ method: 'POST', path: '/services', body: { type: 'tavily', keys: ['tvly-1'] } });
+    const id = created.json.services[0].id;
+    await call({ method: 'POST', path: '/select', body: { id: 'builtin:deepseek-official' } });
+    await call({ method: 'PUT', path: '/fetch', body: { mode: 'service', serviceId: id } });
+    harness.settingsState.value = { searchProvider: 'deepseek-search-api', fetchProvider: 'deepseek-fetch-api' };
+    const reconciled = await call({ method: 'POST', path: '/reconcile' });
+    assert.equal(reconciled.json.selectedId, 'builtin:deepseek-search-api');
+    assert.equal(reconciled.json.fetch.mode, 'service');
+    assert.equal(reconciled.json.fetch.providerId, `better-search/${id}`);
+    assert.equal(harness.settingsState.value.fetchProvider, `better-search/${id}`);
+    assert.equal(reconciled.json.drift.fetch, null);
+    assert.deepEqual(reconciled.json.notice.fetchKept, { mode: 'service', name: 'Tavily', nameEn: 'Tavily' });
+  });
+
+  it('heals a stale fetch pin without losing follow', async () => {
+    await call({ method: 'POST', path: '/select', body: { id: 'builtin:deepseek-search-api' } });
+    await call({ method: 'PUT', path: '/fetch', body: { mode: 'follow' } });
+    harness.settingsState.value.fetchProvider = 'better-search/svc_missing';
+    const reconciled = await call({ method: 'POST', path: '/reconcile' });
+    assert.equal(reconciled.json.fetch.mode, 'follow');
+    assert.equal(harness.settingsState.value.fetchProvider, 'deepseek-fetch-api');
+    assert.equal(reconciled.json.notice.code, 'fetch-healed');
+    assert.equal(reconciled.json.drift.fetch, null);
+  });
+
+  it('clears its own old pin when only the search changes', async () => {
+    const created = await call({ method: 'POST', path: '/services', body: { type: 'tavily', keys: ['tvly-1'] } });
+    const id = created.json.services[0].id;
+    await call({ method: 'PUT', path: '/fetch', body: { mode: 'follow' } });
+    assert.equal(harness.settingsState.value.fetchProvider, `better-search/${id}`);
+    // Only searchProvider changed: the fetch field is our own leftover pin, not an
+    // external fetch preference, so it must go back to the shipped baseline.
+    harness.settingsState.value.searchProvider = 'deepseek-search-api';
+    const reconciled = await call({ method: 'POST', path: '/reconcile' });
+    assert.equal(reconciled.json.selectedId, 'builtin:deepseek-search-api');
+    assert.equal(reconciled.json.fetch.mode, 'follow');
+    assert.equal(harness.settingsState.value.fetchProvider, 'deepseek-fetch-api');
+    assert.equal(reconciled.json.notice.code, 'search-external');
+    assert.equal(reconciled.json.notice.fetchKept, undefined);
+    assert.equal(reconciled.json.drift.fetch, null);
   });
 
   it('heals a pin that points at a service this install no longer has', async () => {

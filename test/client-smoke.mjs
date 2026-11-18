@@ -534,6 +534,10 @@ check('the copy comes from the Kelivo UI spec where it exists', () => {
 	assert.ok(!dictionary.en.searchApiKeysPageBatchResult.includes('(s)'), 'en batch result must not use the (s) plural hack');
 	assert.equal(dictionary.zh.searchServicesPageWebFetchModeTitle, '抓取方式', 'fetch row label drifted');
 	assert.equal(dictionary.zh.searchServicesPageWebFetchFollow, '跟随搜索服务', 'follow option copy drifted');
+	assert.equal(dictionary.zh.searchServicesPageWebFetchFollowOfficial, '当前：官方内置抓取', 'follow + built-in subtitle drifted');
+	assert.equal(dictionary.zh['notice.driftFetchKept'], '抓取方式保持「{name}」不变。', 'kept-fetch notice drifted');
+	assert.equal(dictionary.en.searchServicesPageWebFetchFollowOfficial, 'Currently: official built-in fetch', 'en follow + built-in subtitle drifted');
+	assert.equal(dictionary.en['notice.driftFetchKept'], 'Fetch mode stays “{name}”.', 'en kept-fetch notice drifted');
 	assert.equal(dictionary.zh.searchServicesPageWebFetchProviderSubtitle, '使用该服务商的 API Key 和额度', 'provider subtitle drifted');
 	assert.equal(dictionary.zh.searchServiceEditorUsageTitle, '账户用量', 'usage title drifted');
 	assert.equal(dictionary.zh.searchServiceEditorUsageNotQueried, '尚未查询用量。', 'usage empty copy drifted');

@@ -89,7 +89,8 @@ somewhere. Registering one multiplexer provider would make provider *identity* i
 
 **Fetch selection:** `fetch.mode` is `official` (leave DSH's own `fetchProvider` alone — it is
 captured at startup and restored verbatim), `follow` (pin the selected search service when it has a
-fetch adapter) or `service` (pin that service explicitly). A non-fetch-capable service is rejected
+fetch adapter; when the selection is a built-in search, follow means "leave DSH's own provider
+alone") or `service` (pin that service explicitly). A non-fetch-capable service is rejected
 with a 400, never silently ignored.
 
 **Unload:** before the plugin stops owning either pin, `registry.restore()` puts
@@ -310,8 +311,19 @@ therefore treats the pinned field as an *observation*, not an assumption:
   made while the plugin was disabled is adopted instead of overwritten.
 - `reconcile()` (also `POST /reconcile`) adopts external values into the store and
   only writes when healing (`better-search/*` pointing at a missing service, or a
-  cleared field). It never overwrites a provider owned by another plugin; it reports
-  `foreign` and deselects instead.
+  cleared field) or when re-asserting a preserved fetch mode. It never overwrites a
+  provider owned by another plugin; it reports `foreign` and deselects instead.
+- The fetch mode is a preference independent of the search selection. The official
+  switch stages `searchProvider` and `fetchProvider` in **one** settings mutation,
+  so when both fields drift together, `reconcile()` adopts only the search half and
+  keeps `fetch.mode`; `applyFetchPin()` then re-asserts it when the new selection
+  still maps to a fetch provider, and the notice carries `fetchKept`. A fetch-only
+  external change is still adopted (service pin → `mode: service`, shipped provider
+  → `mode: official`).
+- `drift()` reports fetch only while the plugin owns the field and the value
+  differs, or while a `better-search/*` id is pinned although nothing is owned.
+  `expected: ""` means unowned, so `http` / `deepseek-fetch-api` are accepted while
+  following a built-in search and can never cause a reconcile loop.
 - `GET /state` exposes `drift` (read-only) and the panel calls `/reconcile` once per
   distinct drift value, then shows a localized notice. `POST /select` and
   `PUT /fetch` clear the notice.

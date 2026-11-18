@@ -387,12 +387,20 @@ UIs cooperate instead of fighting.
     "search": null | { "actual": "…", "expected": "…", "kind": "builtin|service|stale-ours|foreign|unset", "…": "…" },
     "fetch":  null | { "actual": "…", "expected": "…", "kind": "…" }
   },
-  "notice": null | { "code": "search-external|search-healed|fetch-external|fetch-healed|search-foreign", "name"?: "…", "nameEn"?: "…", "providerId"?: "…" }
+  "notice": null | {
+    "code": "search-external|search-healed|fetch-external|fetch-healed|search-foreign",
+    "name"?: "…", "nameEn"?: "…", "providerId"?: "…",
+    "fetchKept"?: { "mode": "follow" | "service", "name"?: "…", "nameEn"?: "…" }
+  }
 }
 ```
 
 `drift` is computed on read and never writes. `notice` is the outcome of the last
 `POST /reconcile`, and is cleared by the next `POST /select` or `PUT /fetch`.
+
+For fetch, `expected: ""` means "this plugin does not own `web.fetchProvider`".
+While nothing is owned, a shipped provider such as `http` or `deepseek-fetch-api`
+is a valid value, not drift; only a stray `better-search/*` id is reported.
 
 ## `POST /reconcile`
 
@@ -406,8 +414,23 @@ Adopts external changes, then returns the full state:
 | unset | write `deepseek-search-api`; notice `search-healed` |
 | another plugin's provider | store `selectedId` ← `""`; never write; notice `search-foreign` |
 
-Fetch follows the same idea: adopt a service pin as `mode: "service"`, adopt the
-baseline provider as `mode: "official"`, heal a missing one back to the baseline.
+Fetch has an extra rule because the official switch writes both fields in one
+settings revision:
+
+- **both fields drifted in the same revision** — this is a search gesture. Adopt the
+  search selection, keep the stored fetch mode, and re-assert the fetch pin when it
+  still maps to a provider (`applyFetchPin()`). The notice carries `fetchKept` when
+  an owned pin was overwritten, so the panel can say the mode was preserved
+  (`follow`, or the explicit service name).
+- **only fetch drifted** — adopt it as v3 did: a live service pin becomes
+  `mode: "service"`, a shipped provider becomes `mode: "official"`, and a missing
+  `better-search/*` value is healed to the captured baseline while the stored mode
+  is kept (so `follow` is not silently downgraded).
+
+Following a built-in search means "leave DSH's own fetch provider alone": the
+plugin owns nothing, `fetch.providerId` is `""`, and the panel shows
+`当前：官方内置抓取` / `Currently: official built-in fetch`. Selecting another stored
+service afterwards re-pins fetch according to the preserved mode.
 
 Boot order is now `sync → reconcile → applyPin → applyFetchPin`, so a change made while
 the plugin was disabled survives a restart. `applyPin`/`applyFetchPin` also heal a
@@ -416,6 +439,15 @@ captured sanitized (a stale `better-search/*` baseline becomes `deepseek-fetch-a
 
 The panel detects `drift` on its poll and calls `/reconcile` once per distinct value,
 then shows a localized notice.
+
+## v3.1 — the official switch keeps the fetch mode
+
+Before 0.3.1, a fetch change that arrived together with a search change was adopted
+as `mode: "official"`. Turning the official switch on therefore dropped
+`跟随搜索服务`, and switching search back to a stored provider left `web_fetch` on
+the shipped provider. Since 0.3.1 the co-arrival rule above applies: the mode is
+preserved and re-asserted, `fetchKept` explains it in the panel, and a built-in
+selection no longer produces a false drift when DSH's provider is `http`.
 
 ## Cleanup CLI
 
