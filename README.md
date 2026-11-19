@@ -1,12 +1,13 @@
 # Search services for DeepSeek Harness
 
-**搜索服务 · manage the providers behind `web_search` and `web_fetch`, from DSH's Settings.**
+**搜索服务 · manage the providers behind `web_search` and `web_fetch`, from the plugin's own page in DSH's Plugins panel.**
 
 A [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) plugin that recreates
 [Kelivo](https://github.com/Chevey339/kelivo)'s *Search services* pane inside DSH — cards, live status,
 multi-key pools, account balance and page-fetch routing — in the harness's own theme. The default
-management entry is **Settings → Search services**; the original sidebar page ships as an independent
-module that can be switched on and off from that page.
+management entry is the plugin's own page reachable from **Plugins → Search services → the
+`dsh-better-search` module**; the original sidebar page ships as an independent module switched on
+that page.
 
 <p align="center">
   <a href="https://www.npmjs.com/package/@ds-hu/dsh-better-search"><img alt="npm" src="https://img.shields.io/npm/v/@ds-hu/dsh-better-search?color=2E7DD1"></a>
@@ -37,9 +38,10 @@ module that can be switched on and off from that page.
 - **No fighting with DSH's own settings** — change the switch on the official **网页搜索** page and the
   panel follows it (and says so) without dropping your page-fetch mode; a pin left behind by a
   removed service is healed automatically.
-- **Settings first, sidebar optional** — the management page lives in **Settings → Search services**.
-  The sidebar entry is a separate module with its own **Sidebar entry** switch (on by default,
-  applied live): turn it off to keep the sidebar clean, and manage everything from Settings.
+- **Native plugin page first, sidebar optional** — manage everything from **Plugins → Search
+  services → the module row**. The sidebar entry is a separate module with its own **Sidebar entry**
+  switch (on by default, applied live): turn it off to keep the sidebar clean; the plugin page is
+  always there.
 - **Light and dark** — follows the harness theme; no hard-coded colours.
 
 <p align="center">
@@ -47,7 +49,7 @@ module that can be switched on and off from that page.
 </p>
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/ds-hu/dsh-better-search/main/docs/screenshots/settings-page.png" alt="Settings → Search services: the default management entry, with the Sidebar entry module switch">
+  <img src="https://raw.githubusercontent.com/ds-hu/dsh-better-search/main/docs/screenshots/plugin-config-page.png" alt="The plugin's own page in the Plugins panel: the default management entry, with the Sidebar entry module switch">
 </p>
 
 ## Screenshots
@@ -78,9 +80,10 @@ and restart `dsh web`:
 
 ## Use
 
-1. Open **Settings** (the menu at the foot of the sidebar) → **Search services**, or click the
-   **Search services** icon in the sidebar while its module is on. The settings page is the default
-   entry; the sidebar page is optional and can be switched under **Sidebar entry** on the same page.
+1. Open **Plugins** in the sidebar → **Search services** → click the module row **Search services**.
+   The plugin's own page opens; the sidebar page is optional and can be switched under **Sidebar
+   entry** there. While its module is on, the sidebar **Search services** icon opens the same manager
+   directly.
 2. **+** → pick a provider → paste the key → **Add**.
 3. Click the card to activate it — the built-in `web_search` tool uses it immediately, no restart.
 4. ♥ tests the connection, ⚙ edits, 🗑 deletes; drag cards to reorder.

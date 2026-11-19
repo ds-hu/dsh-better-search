@@ -1,7 +1,7 @@
 {
   "name": "@ds-hu/dsh-better-search",
-  "version": "0.4.0",
-  "description": "Search and fetch services manager for the DeepSeek Harness Web GUI: a Kelivo-style management page inside DSH Settings to add, test, reorder and select web-search providers (Tavily, Brave, Exa, SearXNG, Perplexity and more) and web-fetch providers, with multi-key rotation and account-usage lookup; the original sidebar page is an independent switchable module. Providers serve the built-in web_search / web_fetch tools through ctx.web; the plugin adds no model-facing tool of its own.",
+  "version": "0.5.0",
+  "description": "Search and fetch services manager for the DeepSeek Harness Web GUI: a Kelivo-style management page on the plugin's own page in the native Plugins panel, to add, test, reorder and select web-search providers (Tavily, Brave, Exa, SearXNG, Perplexity and more) and web-fetch providers, with multi-key rotation and account-usage lookup; the original sidebar page is an independent switchable module. Providers serve the built-in web_search / web_fetch tools through ctx.web; the plugin adds no model-facing tool of its own.",
   "type": "module",
   "publishConfig": {
     "access": "public"

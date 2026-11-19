@@ -188,17 +188,14 @@
 .bs-keyFeedback[data-added="true"]{color:var(--dsw-alias-state-business-primary);}
 .bs-keyFeedback[data-error="true"]{color:var(--dsw-alias-state-error-primary);}
 .bs-keyLoadError{display:flex;flex-direction:column;align-items:flex-start;gap:8px;}
-.bs-root[data-variant="settings"]{flex:none;height:auto;min-height:0;background:transparent;}
-.bs-root[data-variant="settings"] .bs-scroll{flex:none;min-height:0;overflow:visible;scrollbar-gutter:auto;}
-.bs-root[data-variant="settings"] .bs-pane{max-width:760px;min-height:0;margin:0;padding:0;}
-.bs-root[data-variant="settings"] .bs-services{margin-top:12px;}
-.bs-root[data-variant="settings"] .bs-sectionCard{margin-top:16px;}
-.bs-root[data-variant="settings"] .bs-hint{margin-top:16px;}
-.bs-settingsHead{display:flex;flex:none;align-items:flex-start;gap:12px;}
-.bs-settingsHeadText{flex:1;min-width:0;}
-.bs-settingsTitle{margin:0;font-size:18px;font-weight:600;line-height:26px;color:var(--dsw-alias-label-primary);}
-.bs-settingsIntro{margin:4px 0 0;font-size:13px;line-height:20px;color:var(--dsw-alias-label-tertiary);}
-.bs-settingsHead .bs-iconBtn{margin-top:2px;}
+.bs-root[data-variant="config"]{flex:none;height:auto;min-height:0;background:transparent;}
+.bs-root[data-variant="config"] .bs-scroll{flex:none;min-height:0;overflow:visible;scrollbar-gutter:auto;}
+.bs-root[data-variant="config"] .bs-pane{max-width:none;min-height:0;margin:0;padding:0;}
+.bs-root[data-variant="config"] .bs-services{margin-top:12px;}
+.bs-root[data-variant="config"] .bs-sectionCard{margin-top:16px;}
+.bs-root[data-variant="config"] .bs-hint{margin-top:16px;}
+.bs-configHead{display:flex;flex:none;justify-content:space-between;align-items:center;gap:12px;min-height:28px;}
+.bs-configSectionTitle{margin:0;font-size:14px;font-weight:500;line-height:20px;color:var(--dsw-alias-label-primary);}
 .bs-rowLabelStack{display:flex;flex:1;flex-direction:column;gap:1px;min-width:0;}
 .bs-rowTitle{font-size:15px;line-height:22px;color:color-mix(in srgb,var(--dsw-alias-label-primary) 90%,transparent);}
 .bs-rowSub{font-size:12px;line-height:17px;color:color-mix(in srgb,var(--dsw-alias-label-primary) 60%,transparent);}

@@ -457,10 +457,10 @@ store directory; `status` never prints credentials.
 
 ---
 
-# v0.4 — Settings entry and the optional sidebar module
+# v0.4 — the sidebar-entry preference (`ui`, `PUT /ui`)
 
 This section supersedes the matching parts above. Everything not restated here keeps its
-previous shape.
+previous shape. The browser registrations from 0.4.0 are replaced by v0.5 below.
 
 ## Store v3 (`$DSH_HOME/better-search/store.json`)
 
@@ -489,19 +489,6 @@ previous shape.
 An older Host half omits `ui`; a current browser half then keeps the sidebar module mounted (the
 historical behaviour) and reports the `PUT /ui` write failure in a localized banner.
 
-## Browser registrations
-
-| Slot | Options | When |
-|---|---|---|
-| `settings.section` | `id: "better-search"`, `order: 12`, `locale: "betterSearch"`, `label: () => t("settings.nav")` | always (default management entry) |
-| `settings.section.icon` | `id: "better-search"`, `order: 12` | always, matches the section id |
-| `main` | `key: "better-search"`, `locale: "betterSearch"` | while `ui.sidebarPanel === true` |
-| `sidebar.panellist` | `id: "better-search"`, `order: 5`, `label: () => t("panel")` | while `ui.sidebarPanel === true` |
-
-`apply()` mounts the sidebar module optimistically, then reads `GET /state` once and unmounts it
-when `ui.sidebarPanel === false`. The Settings section's **Sidebar entry** switch sends
-`PUT /ui { sidebarPanel }` and mounts/unmounts both sidebar slots live from the returned state.
-
 ## `PUT /ui`
 
 - Body: `{ "sidebarPanel": boolean }`; an omitted field keeps the stored value.
@@ -509,3 +496,34 @@ when `ui.sidebarPanel === false`. The Settings section's **Sidebar entry** switc
 - `sidebarPanel` must be a JSON boolean; anything else is `400 invalid-field`.
 - The write is serialized through the store queue and persisted atomically like every other
   mutation.
+
+---
+
+# v0.5 — the native plugin page as the default management entry
+
+This section supersedes the browser-registration part of v0.4. The store, `state.ui` and
+`PUT /ui` above are unchanged.
+
+DSH's Plugins panel declares a keyed `plugins.row.config` slot; a bundle fills it once per
+Loader row. The client registers:
+
+| Slot | Options | When |
+|---|---|---|
+| `plugins.row.config` | `key: "@ds-hu/dsh-better-search#dsh-better-search"`, `locale: "betterSearch"` | while the browser half is loaded |
+| `main` | `key: "better-search"`, `locale: "betterSearch"` | while `ui.sidebarPanel === true` |
+| `sidebar.panellist` | `id: "better-search"`, `order: 5`, `label: () => t("panel")` | while `ui.sidebarPanel === true` |
+
+The key is `<bundle package name>#<row id>`; the row id is the one `cordis.patch.yml`
+declares. The panel turns that row's title into its open/configure control, so a click on the
+row name opens the plugin's own page. The component receives the slot's `{ view, form }` and
+renders:
+
+- `view: "page"` — the full management form (services, providers, fetch mode, common options)
+  plus the **Sidebar entry** switch, which sends `PUT /ui { sidebarPanel }` and mounts/unmounts
+  the sidebar module live;
+- `view: "summary"` — one localized line, used only when the package carries no description.
+
+There is no `settings.section` / `settings.section.icon` registration any more; DSH's Settings
+panel keeps only the built-in inventory. `apply()` still mounts the sidebar module optimistically,
+reads `GET /state` once, and reconciles `ui.sidebarPanel`; the native plugin page remains
+available when the optional sidebar module is off.

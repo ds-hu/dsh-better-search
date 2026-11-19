@@ -7,9 +7,10 @@
  * at it, so this script is its compiler. It runs the real file in a `vm` with a
  * fake browser, calls the real factory with a fake `require`, calls the real
  * `apply` with a mock Cordis context, and asserts the registrations the Web
- * shell depends on were actually made: the Settings section (the default
- * management entry), its navigation icon, the optional sidebar module (`main`
- * page + `sidebar.panellist` row), the locale dictionaries, and the stylesheet.
+ * shell depends on were actually made: the native row configuration page in the
+ * Plugins panel (the default management entry), the optional sidebar module
+ * (`main` page + `sidebar.panellist` row), the locale dictionaries, and the
+ * stylesheet.
  *
  * Some checks are static (no import/export statements, `require("react")` only,
  * API base string, DSH-only CSS variables): the client may never require
@@ -31,6 +32,8 @@ const clientPath = join(root, 'lib/client.js');
 const cssPath = join(root, 'lib/client.css');
 const packageJson = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8'));
 const packageName = packageJson.name;
+const patchSource = readFileSync(join(root, 'cordis.patch.yml'), 'utf8');
+const patchRowId = /^[ \t]*-[ \t]*id:[ \t]*(\S+)[ \t]*$/mu.exec(patchSource)?.[1] ?? '';
 
 const failures = [];
 
@@ -429,25 +432,30 @@ await check('the module exports a plugin shape', () => {
 	assert.equal(typeof loaded.exports.apply, 'function', 'the module must export `apply`');
 });
 
-await check('the settings section and its icon are registered', () => {
+await check('the native plugin row config page is registered', () => {
 	const loaded = bundleOrFail();
-	const section = loaded.log.slots.find((entry) => entry.definition.name === 'settings.section');
-	assert.ok(section, 'settings.section was not registered; Settings would have no management entry');
-	assert.equal(section.definition.id, 'better-search', 'settings.section id must be "better-search"');
-	assert.equal(section.definition.order, 12, 'settings.section order must place it between Models (10) and Built-in plugins (15)');
-	assert.equal(section.definition.locale, 'betterSearch', 'the settings section locale namespace must be "betterSearch"');
-	assert.equal(typeof section.definition.label, 'function', 'the settings section needs a navigation label function');
-	assert.equal(section.definition.label(), '搜索服务', 'the settings navigation label must resolve to 搜索服务');
-	const icon = loaded.log.slots.find((entry) => entry.definition.name === 'settings.section.icon');
-	assert.ok(icon, 'settings.section.icon was not registered');
-	assert.equal(icon.definition.id, 'better-search', 'settings.section.icon id must match the section id');
-	assert.equal(typeof icon.component, 'function', 'the settings icon needs a component');
+	assert.equal(patchRowId, 'dsh-better-search', 'cordis.patch.yml must declare exactly one row id');
+	const entry = loaded.log.slots.find((item) => item.definition.name === 'plugins.row.config');
+	assert.ok(entry, 'plugins.row.config was not registered; the Plugins panel would have no management entry');
+	assert.equal(entry.definition.key, `${packageName}#${patchRowId}`, 'plugins.row.config key must be <bundle>#<row id>');
+	assert.equal(entry.definition.locale, 'betterSearch', 'the row config page locale namespace must be "betterSearch"');
+	assert.equal(typeof entry.component, 'function', 'the row config page needs a component');
 	assert.deepEqual(
 		loaded.log.injected.slice().sort(),
-		['main', 'settings.section', 'settings.section.icon', 'sidebar.panellist'],
-		'the client registers the Settings entry and the optional sidebar module, nothing else',
+		['main', 'plugins.row.config', 'sidebar.panellist'],
+		'the client registers the native row config page and the optional sidebar module, nothing else',
 	);
-	assert.equal(loaded.log.slots.length, 4, `expected four slot registrations, got ${loaded.log.slots.length}`);
+	assert.equal(loaded.log.slots.length, 3, `expected three slot registrations, got ${loaded.log.slots.length}`);
+	assert.ok(
+		!loaded.log.slots.some((item) => String(item.definition.name).startsWith('settings.')),
+		'the client must not add a Settings-panel section',
+	);
+});
+
+await check('the row config key follows cordis.patch.yml and package.json', () => {
+	const api = bundleOrFail().exports.__bsTest;
+	assert.equal(typeof api.rowConfigKey, 'function', '__bsTest.rowConfigKey is not exported');
+	assert.equal(api.rowConfigKey(), `${packageName}#${patchRowId}`, 'the row config key drifted from the bundle row id');
 });
 
 await check('the sidebar panellist entry is registered as agreed', () => {
@@ -615,30 +623,33 @@ await check('apply() reads /state once to decide the sidebar module and starts n
 await check('the sidebar module is independent and switchable', async () => {
 	const disabled = await loadBundle({ state: { ok: true, ui: { sidebarPanel: false } } });
 	assert.equal(disabled.exports.__bsTest.isSidebarModuleMounted(), false, 'a host preference of false must not mount the sidebar module');
-	assert.equal(disabled.log.slots.length, 2, 'the sidebar page and row must be unregistered when the module is off');
+	assert.equal(disabled.log.slots.length, 1, 'only the native row config page must stay registered when the module is off');
 	assert.deepEqual(
 		disabled.log.slots.map((entry) => entry.definition.name).sort(),
-		['settings.section', 'settings.section.icon'],
-		'only the Settings entry survives when the sidebar module is off',
+		['plugins.row.config'],
+		'the native row config page survives when the optional sidebar module is off',
 	);
 
 	const api = disabled.exports.__bsTest;
 	api.applySidebarPreference(true);
 	assert.equal(api.isSidebarModuleMounted(), true, 'switching the module on must mount it live');
-	assert.equal(disabled.log.slots.length, 4, 'switching the module on must register the page and the row');
+	assert.equal(disabled.log.slots.length, 3, 'switching the module on must register the page and the row');
 	const row = disabled.log.slots.find((entry) => entry.definition.name === 'sidebar.panellist');
 	assert.equal(row.definition.id, 'better-search', 'the live-mounted sidebar row must keep its id');
 
 	api.applySidebarPreference(false);
 	assert.equal(api.isSidebarModuleMounted(), false, 'switching the module off must unmount it live');
-	assert.equal(disabled.log.slots.length, 2, 'switching the module off must remove the page and the row');
+	assert.equal(disabled.log.slots.length, 1, 'switching the module off must remove the page and the row');
 });
 
-await check('the Settings section renders the sidebar-module switch', () => {
+await check('the native row config page renders the manager and the sidebar-module switch', () => {
 	const api = bundleOrFail().exports.__bsTest;
-	const section = api.SearchServicesSettings();
-	assert.equal(section.type, api.SearchServicesManager, 'the Settings entry must render the shared manager');
-	assert.equal(section.props.variant, 'settings', 'the Settings entry must use the settings variant');
+	const summary = api.SearchServicesConfigPage({ view: 'summary' });
+	assert.equal(typeof summary, 'string', 'the summary view must be one translated line');
+	assert.ok(summary.includes('侧边栏'), 'the summary copy must mention the sidebar entry');
+	const page = api.SearchServicesConfigPage({ view: 'page', form: {} });
+	assert.equal(page.type, api.SearchServicesManager, 'the page view must render the shared manager');
+	assert.equal(page.props.variant, 'config', 'the native row page must use the config variant');
 	const card = api.SidebarModuleCard({ enabled: false, disabled: false, onChange: () => {} });
 	const serialized = JSON.stringify(card);
 	assert.ok(serialized.includes('sidebar-module'), 'the switch is missing its test id');
